@@ -19,7 +19,7 @@
         devShell = pkgs.mkShell {
           buildInputs = [
             (pkgs.ghc.withPackages (ps: with ps; 
-              [ finite-field arithmoi ])
+              [ finite-field arithmoi iso-deriving linear ])
             )
             vscodium-with-extensions
           ];

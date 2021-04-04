@@ -4,6 +4,16 @@
 
 {-# LANGUAGE DataKinds #-}
 -- {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 import Data.Semigroup
 import Control.Applicative
 import Data.Ratio
@@ -17,8 +27,25 @@ import Data.Proxy
 import Data.Singletons.TypeLits
 import Numeric.Natural
 import qualified Data.Set as Set
+import Iso.Deriving
+import Control.Alternative.Free
+import Linear
+import Linear.Affine
 
-data Fib a = Fib a a deriving (Eq, Ord, Functor, Foldable)
+newtype Fib a = F (Complex a) deriving (Eq, Functor, Applicative, Additive)
+
+deriving via (V2 a `As` Fib a) instance Ord a => Ord (Fib a)
+
+instance Inject (V2 a) (Fib a) where
+  inj (V2 a b) = Fib a b
+
+instance Project (V2 a) (Fib a) where
+  prj (Fib a b) = V2 a b
+
+pattern Fib a b = F (a :+ b)
+
+instance Show a => Show (Fib a) where
+  show (Fib p n) = show p <> " + (" <> show n <> ")f"
 
 extractReal, extractFib :: Fib a -> a
 extractReal (Fib real _) = real
@@ -37,29 +64,12 @@ inverse (Fib a b)
       Fib ((a + b)/ (a^2 + a*b -b^2)) (-b/(a^2 + a*b - b^2))
   | otherwise = Nothing
 
--- invertFiniteFib :: (Integral a, Eq a) => Fib a -> Fib a
--- invertFiniteFib (Fib a b) 
---  | a == 0 && b /= 0 = Fib (1 `div` (-b)) (1 `div` b)
---  | a /=0 && b^2 /= a*(a + b)  = Fib ((a + b) `div` (a^2 + a*b -b^2)) (-b `div` (a^2 + a*b - b^2))
---  | otherwise = error "ahhh"
-      
-
---a*ia + b*ib = 1
---(a*ib + b*ia + b*ib) = 0
-
 binet :: Floating a => a -> a
 binet n = ((5 + sqrt 5)**n - (5 - sqrt 5)**n)/(sqrt 5 * 2**n)
 
 fibinet :: Floating a => a -> Fib a
 fibinet n = Fib (binet (n-1)) (binet n)
 
-
---  Fib (a*ia + b*ib) (a*ib + b*ia + b*ib) = Fib 1 0
---  Fib a b * Fib ia ib = Fib 1 0
-
-instance Applicative Fib where
-  pure a = Fib a a
-  liftA2 f (Fib a1 a2) (Fib b1 b2) = Fib (f a1 b1) (f a2 b2)
 
 instance Num a => Monoid (Fib a) where
   mempty = Fib 1 0
