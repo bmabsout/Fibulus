@@ -1,0 +1,2 @@
+:set -XTypeApplications -XDataKinds
+:load Fibulous

@@ -16,39 +16,13 @@ import Data.Containers.ListUtils
 import Data.Proxy
 import Data.Singletons.TypeLits
 import Numeric.Natural
-import qualified Data.Set as S
+import qualified Data.Set as Set
 
 data Fib a = Fib a a deriving (Eq, Ord, Functor, Foldable)
 
 extractReal, extractFib :: Fib a -> a
 extractReal (Fib real _) = real
 extractFib (Fib _ f) = f
-
-instance Show a => Show (Fib a) where
-  show (Fib p n) = show p <> " + (" <> show n <> ")f"
-
-data C a = C a a deriving (Eq, Functor)
-
-instance Show a => Show (C a) where
-  show (C r i) = show r <> "+" <> show i <> "i"
-
-instance Num a => Semigroup (C a) where
-  (C a1 a2) <> (C b1 b2) = C (a1*b1 - a2*b2) (a1*b2 + a2*b1)
-
-instance Applicative C where
-  pure a = C a a
-  liftA2 f (C a1 a2) (C b1 b2) = C (f a1 b1) (f a2 b2)
-
-instance Num a => Monoid (C a) where
-  mempty = C 1 0
-
-instance Num a => Num (C a) where
-  (+)  = liftA2 (+)
-  (*) = (<>)
-  fromInteger n = C (fromInteger n) (fromInteger 0)
-  negate      = (<> C (fromInteger $ -1) (fromInteger $ 0))
-
-
 
 instance Num a => Semigroup (Fib a) where
   (Fib a1 a2) <> (Fib b1 b2) = Fib (a1*b1 + a2*b2) (a1*b2 + a2*b1 + a2*b2)
@@ -129,8 +103,8 @@ invertibleFibs = filter ((/= Nothing) . inverse) $ fibsUnder @n
 getGenerators :: forall n. KnownNat n => [Fib (PrimeField n)]
 getGenerators = filter (\g -> generates g == fibsSet) invertibleFibs
   where
-    generates g = S.map (g^) $ S.fromList [0 .. S.size fibsSet]
-    fibsSet = S.fromList invertibleFibs
+    generates g = Set.map (g^) $ Set.fromList [0 .. Set.size fibsSet]
+    fibsSet = Set.fromList invertibleFibs
 
 findInverses :: KnownNat n => Fib (PrimeField n) -> [Fib (PrimeField n)]
 findInverses f = filter (\f2 -> f*f2 == Fib 0 1) fibsUnder
@@ -138,6 +112,9 @@ findInverses f = filter (\f2 -> f*f2 == Fib 0 1) fibsUnder
 areNotInvertible :: KnownNat n => [Fib (PrimeField n)]
 areNotInvertible = filter (\f -> length (findInverses f) /= 1) fibsUnder
 
+
+any2Closed :: (Ord a, Semigroup a) => [a] -> Bool
+any2Closed l = Set.fromList l == Set.fromList ((<>) <$> l <*> l)
 -- isPrime :: (Integral a, Enum a) => Fib a -> Bool
 -- isPrime f = filter (/= Fib 0 1) $ Fib <$> [0..max] <*> [1..max]
 --   where max = maximum f
