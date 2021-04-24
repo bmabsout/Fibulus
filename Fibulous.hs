@@ -31,6 +31,7 @@ import Iso.Deriving
 import Control.Alternative.Free
 import Linear
 import Linear.Affine
+import Data.Maybe
 
 newtype Fib a = F (Complex a) deriving (Eq, Functor, Applicative, Additive)
 
@@ -87,11 +88,17 @@ instance (Eq a, Fractional a) => Fractional (Fib a) where
     Nothing -> error "ahhh"
   fromRational nd = fromInteger (numerator nd) * recip (fromInteger (denominator nd))
 
+f :: Num a => Fib a
+f = Fib 0 1
+
+fi :: (Eq a, Fractional a) => Fib a
+fi = fromJust $ inverse f
+
 logFib :: (Integral b, Num a) => b -> a
-logFib n = extractFib $ (Fib 0 1)^n
+logFib n = extractFib $ f^n
 
 flatten :: Num a => Fib (Fib a) -> Fib a
-flatten (Fib (Fib rr rf) (Fib fr ff)) = Fib rr 0 + (Fib rf 0 + Fib fr 0)*(Fib 0 1) + (Fib ff 0)*(Fib 0 1)^2
+flatten (Fib (Fib rr rf) (Fib fr ff)) = Fib rr 0 + (Fib rf 0 + Fib fr 0)*f + (Fib ff 0)*f^2
 
 expFib :: Natural -> Natural
 expFib 0 = 1
@@ -117,10 +124,11 @@ getGenerators = filter (\g -> generates g == fibsSet) invertibleFibs
     fibsSet = Set.fromList invertibleFibs
 
 findInverses :: KnownNat n => Fib (PrimeField n) -> [Fib (PrimeField n)]
-findInverses f = filter (\f2 -> f*f2 == Fib 0 1) fibsUnder
+findInverses n = filter (\n2 -> n*n2 == Fib 0 1) fibsUnder
 
 areNotInvertible :: KnownNat n => [Fib (PrimeField n)]
-areNotInvertible = filter (\f -> length (findInverses f) /= 1) fibsUnder
+areNotInvertible = filter (\n -> length (findInverses n) /= 1) fibsUnder
+
 
 
 any2Closed :: (Ord a, Semigroup a) => [a] -> Bool
@@ -129,6 +137,21 @@ any2Closed l = Set.fromList l == Set.fromList ((<>) <$> l <*> l)
 -- isPrime f = filter (/= Fib 0 1) $ Fib <$> [0..max] <*> [1..max]
 --   where max = maximum f
 
+
+power :: RealFloat a => Fib (Complex a) -> Complex a -> Fib (Complex a)
+power (Fib a b) n =
+  Fib
+    (
+      ( a*(phi**n - (-phi)**(-n))
+      + b*(phi**(n-1) + phi*(-phi)**(-n))
+      )/sqrt 5
+    )
+    (
+      ( a*(phi**(n+1) + (-phi)**n/phi)
+      + b*(phi**n) - (-phi)**(-n)
+      )/sqrt 5
+    )
+  where phi = (1 + sqrt 5)/2 :+ 0
 
 
 --(a,b)
