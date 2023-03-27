@@ -89,7 +89,7 @@ instance (Eq a, Fractional a) => Fractional (Fib a) where
   fromRational nd = fromInteger (numerator nd) * recip (fromInteger (denominator nd))
 
 f :: Num a => Fib a
-f = Fib 0 1
+f = Fib 0 1 -- 0 + f
 
 fi :: (Eq a, Fractional a) => Fib a
 fi = fromJust $ inverse f
@@ -124,11 +124,13 @@ getGenerators = filter (\g -> generates g == fibsSet) invertibleFibs
     fibsSet = Set.fromList invertibleFibs
 
 findInverses :: KnownNat n => Fib (PrimeField n) -> [Fib (PrimeField n)]
-findInverses n = filter (\n2 -> n*n2 == Fib 0 1) fibsUnder
+findInverses n = filter (\n2 -> n*n2 == Fib 1 0) fibsUnder
+
+areNotUniquelyInvertible :: KnownNat n => [Fib (PrimeField n)]
+areNotUniquelyInvertible = filter (\n -> length (findInverses n) /= 1) fibsUnder
 
 areNotInvertible :: KnownNat n => [Fib (PrimeField n)]
-areNotInvertible = filter (\n -> length (findInverses n) /= 1) fibsUnder
-
+areNotInvertible = filter (\n -> length (findInverses n) == 0) fibsUnder
 
 
 any2Closed :: (Ord a, Semigroup a) => [a] -> Bool
@@ -172,6 +174,6 @@ power (Fib a b) n =
 
 
 main :: IO ()
-main = print (logFib 100000)
+main = print (areNotInvertible @37)
 
 

@@ -21,6 +21,7 @@
             (pkgs.ghc.withPackages (ps: with ps; 
               [ finite-field arithmoi iso-deriving linear ])
             )
+	    pkgs.haskell-language-server
             vscodium-with-extensions
           ];
           Test=123;
