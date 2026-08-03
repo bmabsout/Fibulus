@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveFoldable, DeriveFunctor #-}
 
 {-# LANGUAGE DataKinds #-}
--- {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeOperators #-}
@@ -14,36 +14,26 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE LambdaCase #-}
 import Data.Semigroup
-import Control.Applicative
 import Data.Ratio
 import Data.Complex
-import Data.List
-
-import Data.FiniteField.PrimeField
-
-import Data.Containers.ListUtils
 import Data.Proxy
-import Data.Singletons.TypeLits
+import GHC.TypeLits (KnownNat, Nat, natVal)
+import Math.NumberTheory.Moduli (Mod)
+import Linear (V2(..))
 import Numeric.Natural
 import qualified Data.Set as Set
-import Iso.Deriving
-import Control.Alternative.Free
-import Linear
-import Linear.Affine
 import Data.Maybe
 
-newtype Fib a = F (Complex a) deriving (Eq, Functor, Applicative, Additive)
+newtype Fib a = F (V2 a)
+  deriving stock (Eq, Functor)
+  deriving newtype (Applicative)
 
-deriving via (V2 a `As` Fib a) instance Ord a => Ord (Fib a)
+deriving via (V2 a) instance Ord a => Ord (Fib a)
 
-instance Inject (V2 a) (Fib a) where
-  inj (V2 a b) = Fib a b
-
-instance Project (V2 a) (Fib a) where
-  prj (Fib a b) = V2 a b
-
-pattern Fib a b = F (a :+ b)
+pattern Fib a b = F (V2 a b)
+{-# COMPLETE Fib #-}
 
 instance Show a => Show (Fib a) where
   show (Fib p n) = show p <> " + (" <> show n <> ")f"
@@ -76,16 +66,18 @@ instance Num a => Monoid (Fib a) where
   mempty = Fib 1 0
 
 instance Num a => Num (Fib a) where
-  (+)  = liftA2 (+)
+  Fib a1 b1 + Fib a2 b2 = Fib (a1 + a2) (b1 + b2)
   (*) = (<>)
   fromInteger n = Fib (fromInteger n) 0
   negate      = (<> Fib (fromInteger $ -1) 0)
+  abs = id
+  signum = const (Fib 1 0)
   --    signum      = fmap signum
 
 instance (Eq a, Fractional a) => Fractional (Fib a) where
   recip f = case inverse f of
     Just inverted -> inverted
-    Nothing -> error "ahhh"
+    Nothing -> error "non-invertible Fib element"
   fromRational nd = fromInteger (numerator nd) * recip (fromInteger (denominator nd))
 
 f :: Num a => Fib a
@@ -106,30 +98,31 @@ expFib 1 = 1
 expFib n = expFib (n-1) + expFib (n-2)
 
 linearFib :: Natural -> Natural
-linearFib = helper 0 1
+linearFib 0 = 0
+linearFib n = helper 0 1 n
   where helper _ b 1 = b
         helper a b n = helper b (a + b) (n - 1) 
 
-fibsUnder :: forall n. KnownNat n => [Fib (PrimeField n)]
+fibsUnder :: forall n. KnownNat n => [Fib (Mod n)]
 fibsUnder = Fib <$> numbers <*> numbers
-  where numbers = fmap fromIntegral [0 .. natVal (Proxy @n) - 1]
+  where numbers = fmap fromInteger [0 .. natVal (Proxy @n) - 1]
 
-invertibleFibs :: forall n. KnownNat n => [Fib (PrimeField n)]
+invertibleFibs :: forall n. KnownNat n => [Fib (Mod n)]
 invertibleFibs = filter ((/= Nothing) . inverse) $ fibsUnder @n
 
-getGenerators :: forall n. KnownNat n => [Fib (PrimeField n)]
+getGenerators :: forall n. KnownNat n => [Fib (Mod n)]
 getGenerators = filter (\g -> generates g == fibsSet) invertibleFibs
   where
     generates g = Set.map (g^) $ Set.fromList [0 .. Set.size fibsSet]
     fibsSet = Set.fromList invertibleFibs
 
-findInverses :: KnownNat n => Fib (PrimeField n) -> [Fib (PrimeField n)]
+findInverses :: KnownNat n => Fib (Mod n) -> [Fib (Mod n)]
 findInverses n = filter (\n2 -> n*n2 == Fib 1 0) fibsUnder
 
-areNotUniquelyInvertible :: KnownNat n => [Fib (PrimeField n)]
+areNotUniquelyInvertible :: KnownNat n => [Fib (Mod n)]
 areNotUniquelyInvertible = filter (\n -> length (findInverses n) /= 1) fibsUnder
 
-areNotInvertible :: KnownNat n => [Fib (PrimeField n)]
+areNotInvertible :: KnownNat n => [Fib (Mod n)]
 areNotInvertible = filter (\n -> length (findInverses n) == 0) fibsUnder
 
 
